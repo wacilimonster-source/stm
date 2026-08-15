@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 
 class SillyTavernClient {
   late final Dio _dio;
+  final CookieJar _cookieJar = CookieJar();
   final String baseUrl;
+  String? _csrfToken;
 
   SillyTavernClient({required this.baseUrl}) {
     _dio = Dio(BaseOptions(
@@ -14,14 +18,42 @@ class SillyTavernClient {
         'Content-Type': 'application/json',
       },
     ));
+    _dio.interceptors.add(CookieManager(_cookieJar));
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (_csrfToken != null) {
+            options.headers['X-CSRF-Token'] = _csrfToken;
+          }
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   Future<bool> checkConnection() async {
     try {
       final response = await _dio.get('/');
-      return response.statusCode == 200;
+      if (response.statusCode != 200) {
+        return false;
+      }
+      await _fetchCsrfToken();
+      return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  Future<void> _fetchCsrfToken() async {
+    try {
+      final response = await _dio.get('/csrf-token');
+      final data = response.data;
+      if (data is Map && data['token'] != null) {
+        final token = data['token'].toString();
+        _csrfToken = token == 'disabled' ? null : token;
+      }
+    } catch (e) {
+      _csrfToken = null;
     }
   }
 
