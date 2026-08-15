@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/update/update_dialog.dart';
 import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
 import '../welcome/welcome_screen.dart';
@@ -15,8 +16,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _updateService = UpdateService();
   bool _isCheckingUpdate = false;
-  bool _isDownloading = false;
-  double _downloadProgress = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -70,12 +69,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : const Icon(Icons.chevron_right),
             onTap: _isCheckingUpdate ? null : _checkUpdate,
           ),
-          if (_isDownloading) ...[
-            ListTile(
-              title: Text('下载中 ${(_downloadProgress * 100).toStringAsFixed(1)}%'),
-              subtitle: LinearProgressIndicator(value: _downloadProgress),
-            ),
-          ],
           const Divider(),
           _SectionTitle('关于'),
           const ListTile(
@@ -91,89 +84,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isCheckingUpdate = true);
 
     try {
-      final update = await _updateService.checkUpdate();
-
-      if (!mounted) return;
-
-      if (update != null) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('发现新版本 v${update.version}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('发现新版本，是否下载？'),
-                if (update.releaseNotes.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    update.releaseNotes,
-                    maxLines: 5,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('下载'),
-              ),
-            ],
-          ),
-        );
-
-        if (confirmed == true) {
-          _downloadUpdate(update);
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已是最新版本')),
-        );
-      }
+      await checkUpdateAndDownload(context, _updateService);
     } finally {
       if (mounted) {
         setState(() => _isCheckingUpdate = false);
-      }
-    }
-  }
-
-  Future<void> _downloadUpdate(UpdateInfo update) async {
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0;
-    });
-
-    try {
-      await _updateService.downloadUpdate(
-        update.downloadUrl,
-        update.version,
-        (received, total) {
-          if (total > 0 && mounted) {
-            setState(() => _downloadProgress = received / total);
-          }
-        },
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('下载完成，请手动安装 APK')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('下载失败: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isDownloading = false);
       }
     }
   }

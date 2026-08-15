@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/update/update_dialog.dart';
+import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
 import '../home/home_screen.dart';
 
@@ -12,7 +14,9 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _urlController = TextEditingController();
+  final _updateService = UpdateService();
   bool _isConnecting = false;
+  bool _isCheckingUpdate = false;
 
   @override
   void dispose() {
@@ -47,6 +51,29 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: _isCheckingUpdate
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.system_update),
+            tooltip: '检查更新',
+            onPressed: _isCheckingUpdate
+                ? null
+                : () async {
+                    setState(() => _isCheckingUpdate = true);
+                    await checkUpdateAndDownload(context, _updateService);
+                    if (mounted) {
+                      setState(() => _isCheckingUpdate = false);
+                    }
+                  },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),

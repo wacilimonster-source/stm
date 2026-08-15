@@ -63,12 +63,16 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
     state = state.copyWith(status: ConnectionStatus.connecting);
 
     try {
-      final client = SillyTavernClient(baseUrl: url);
+      var normalized = url.trim();
+      if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+        normalized = 'http://$normalized';
+      }
+      final client = SillyTavernClient(baseUrl: normalized);
       final isConnected = await client.checkConnection();
 
       if (isConnected) {
         await client.login();
-        await _storage.setServerUrl(url);
+        await _storage.setServerUrl(normalized);
         state = ConnectionState(
           status: ConnectionStatus.connected,
           client: client,

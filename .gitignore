@@ -18,3 +18,5 @@ windows/
 *.lock
 *.log
 *.tmp
+pocket_tavern/
+*.bak
