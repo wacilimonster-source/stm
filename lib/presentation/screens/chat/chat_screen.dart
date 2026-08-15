@@ -29,6 +29,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(chatProvider(_params()).notifier).loadHistory();
+      _loadServerWorldBinding();
     });
   }
 
@@ -36,6 +37,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         avatarUrl: widget.avatarUrl,
         fileName: widget.fileId,
       );
+
+  Future<void> _loadServerWorldBinding() async {
+    final connection = ref.read(connectionProvider);
+    final client = connection.client;
+    if (client == null || widget.avatarUrl.isEmpty) return;
+
+    try {
+      final character = await client.getCharacter(widget.avatarUrl);
+      final world = character['data']?['extensions']?['world'];
+      final selections = ref.read(selectedWorldInfosProvider);
+      if (world is String && world.isNotEmpty && !selections.containsKey(widget.avatarUrl)) {
+        ref.read(selectedWorldInfosProvider.notifier).state = {
+          ...selections,
+          widget.avatarUrl: [world],
+        };
+      }
+    } catch (_) {}
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -49,23 +80,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final theme = Theme.of(context);
     final params = _params();
     final chatState = ref.watch(chatProvider(params));
-    final worldInfoName = ref.watch(selectedWorldInfoProvider);
+    final selectedNames =
+        ref.watch(selectedWorldInfosProvider)[widget.avatarUrl] ?? const [];
+
+    ref.listen(chatProvider(params), (prev, next) {
+      final prevCount = prev?.messages.length ?? 0;
+      if (next.messages.length != prevCount) {
+        _scrollToBottom();
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.characterName),
         actions: [
-          if (worldInfoName != null)
+          IconButton(
+            icon: const Icon(Icons.menu_book_outlined),
+            tooltip: '世界书',
+            onPressed: () => _showWorldInfoPicker(context),
+          ),
+          if (selectedNames.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
-                child: Chip(
-                  avatar: const Icon(Icons.book, size: 16),
-                  label: Text(
-                    worldInfoName,
-                    style: theme.textTheme.bodySmall,
+                child: Text(
+                  '${selectedNames.length}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
                   ),
-                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ),
@@ -139,11 +182,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.menu_book_outlined),
-                    tooltip: '切换世界书',
-                    onPressed: () => _showWorldInfoPicker(context),
-                  ),
                   Expanded(
                     child: TextField(
                       controller: _inputController,
@@ -232,7 +270,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showWorldInfoPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => const _WorldInfoPicker(),
+      builder: (context) => _WorldInfoPicker(avatarUrl: widget.avatarUrl),
     );
   }
 
@@ -242,6 +280,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     _inputController.clear();
     ref.read(chatProvider(_params()).notifier).sendMessage(text);
+    _scrollToBottom();
   }
 }
 
@@ -309,7 +348,9 @@ class _MessageBubble extends StatelessWidget {
 }
 
 class _WorldInfoPicker extends ConsumerStatefulWidget {
-  const _WorldInfoPicker();
+  final String avatarUrl;
+
+  const _WorldInfoPicker({required this.avatarUrl});
 
   @override
   ConsumerState<_WorldInfoPicker> createState() => _WorldInfoPickerState();
@@ -317,10 +358,14 @@ class _WorldInfoPicker extends ConsumerStatefulWidget {
 
 class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
   List<Map<String, dynamic>>? _worldInfos;
+  Set<String> _selected = {};
 
   @override
   void initState() {
     super.initState();
+    _selected = Set.of(
+      ref.read(selectedWorldInfosProvider)[widget.avatarUrl] ?? const [],
+    );
     _load();
   }
 
@@ -335,8 +380,6 @@ class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final current = ref.watch(selectedWorldInfoProvider);
-
     return SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -344,45 +387,54 @@ class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              '切换世界书',
+              '选择世界书（可多选）',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.block),
-            title: const Text('不使用世界书'),
-            trailing: current == null ? const Icon(Icons.check) : null,
-            onTap: () {
-              ref.read(selectedWorldInfoProvider.notifier).state = null;
-              Navigator.pop(context);
-            },
-          ),
-          if (_worldInfos == null)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(),
-            )
-          else
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _worldInfos!.length,
-                itemBuilder: (context, index) {
-                  final wi = _worldInfos![index];
-                  final name = wi['name'] ?? '';
-                  return ListTile(
-                    leading: const Icon(Icons.book_outlined),
-                    title: Text(name),
-                    trailing:
-                        current == name ? const Icon(Icons.check) : null,
-                    onTap: () {
-                      ref.read(selectedWorldInfoProvider.notifier).state = name;
-                      Navigator.pop(context);
+          Flexible(
+            child: _worldInfos == null
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _worldInfos!.length,
+                    itemBuilder: (context, index) {
+                      final wi = _worldInfos![index];
+                      final name = wi['name'] ?? '';
+                      return CheckboxListTile(
+                        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        value: _selected.contains(name),
+                        onChanged: (checked) {
+                          setState(() {
+                            if (checked == true) {
+                              _selected.add(name);
+                            } else {
+                              _selected.remove(name);
+                            }
+                          });
+                        },
+                      );
                     },
-                  );
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  ref.read(selectedWorldInfosProvider.notifier).state = {
+                    ...ref.read(selectedWorldInfosProvider),
+                    widget.avatarUrl: _selected.toList(),
+                  };
+                  Navigator.pop(context);
                 },
+                child: const Text('确定'),
               ),
             ),
+          ),
         ],
       ),
     );

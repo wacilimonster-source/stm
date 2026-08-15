@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import '../../providers/characters_provider.dart';
+import '../chat/chat_screen.dart';
 
 class CharactersTab extends ConsumerWidget {
   final String avatarBaseUrl;
@@ -43,12 +44,15 @@ class CharactersTab extends ConsumerWidget {
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   onTap: () {
-                    ref.read(activeChatProvider.notifier).state = ActiveChat(
-                      avatar: char.avatar,
-                      fileId: '',
-                      characterName: char.name,
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          avatarUrl: char.avatar,
+                          fileId: '',
+                          characterName: char.name,
+                        ),
+                      ),
                     );
-                    ref.read(shellTabIndexProvider.notifier).state = 1;
                   },
                   onLongPress: () {
                     _showCharacterMenu(context, ref, char, avatarBaseUrl);
@@ -111,12 +115,15 @@ class CharactersTab extends ConsumerWidget {
               title: const Text('开始对话'),
               onTap: () {
                 Navigator.pop(context);
-                ref.read(activeChatProvider.notifier).state = ActiveChat(
-                  avatar: char.avatar,
-                  fileId: '',
-                  characterName: char.name,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      avatarUrl: char.avatar,
+                      fileId: '',
+                      characterName: char.name,
+                    ),
+                  ),
                 );
-                ref.read(shellTabIndexProvider.notifier).state = 1;
               },
             ),
             ListTile(

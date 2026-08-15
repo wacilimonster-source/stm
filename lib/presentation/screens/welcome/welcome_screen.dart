@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/update/update_dialog.dart';
 import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
-import '../home/home_screen.dart';
+import '../home/main_shell.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
@@ -36,7 +36,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     final state = ref.read(connectionProvider);
     if (state.status == ConnectionStatus.connected && mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainShell()),
       );
     }
 

@@ -134,8 +134,7 @@ class ActiveChat {
   });
 }
 
-final activeChatProvider = StateProvider<ActiveChat?>((ref) => null);
-
 final shellTabIndexProvider = StateProvider<int>((ref) => 0);
 
-final selectedWorldInfoProvider = StateProvider<String?>((ref) => null);
+final selectedWorldInfosProvider =
+    StateProvider<Map<String, List<String>>>((ref) => {});

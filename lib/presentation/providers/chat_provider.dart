@@ -120,21 +120,28 @@ class ChatNotifier extends StateNotifier<ChatState> {
         ],
       };
 
-      final worldInfoName = _ref.read(selectedWorldInfoProvider);
-      if (worldInfoName != null && worldInfoName.isNotEmpty) {
+      final worldInfoNames = _ref
+          .read(selectedWorldInfosProvider)[_params.avatarUrl] ?? const [];
+      if (worldInfoNames.isNotEmpty) {
         try {
-          final wiData = await connection.client!.getWorldInfo(worldInfoName);
-          final entries = wiData['entries'] as Map<String, dynamic>? ?? {};
-          final worldContent = entries.values
-              .whereType<Map<String, dynamic>>()
-              .where((e) => e['disable'] != true)
-              .map((e) => e['content']?.toString() ?? '')
-              .where((c) => c.isNotEmpty)
-              .join('\n\n');
-          if (worldContent.isNotEmpty) {
+          final parts = <String>[];
+          for (final name in worldInfoNames) {
+            final wiData = await connection.client!.getWorldInfo(name);
+            final entries = wiData['entries'] as Map<String, dynamic>? ?? {};
+            final content = entries.values
+                .whereType<Map<String, dynamic>>()
+                .where((e) => e['disable'] != true)
+                .map((e) => e['content']?.toString() ?? '')
+                .where((c) => c.isNotEmpty)
+                .join('\n\n');
+            if (content.isNotEmpty) {
+              parts.add('【$name】\n$content');
+            }
+          }
+          if (parts.isNotEmpty) {
             (body['messages'] as List).insert(0, {
               'role': 'system',
-              'content': '以下是世界设定，请在对话中遵循：\n$worldContent',
+              'content': '以下是世界设定，请在对话中遵循：\n${parts.join('\n\n')}',
             });
           }
         } catch (_) {}

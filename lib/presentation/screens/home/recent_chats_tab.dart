@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import '../../providers/chat_provider.dart';
+import '../chat/chat_screen.dart';
 
 class RecentChatsTab extends ConsumerWidget {
   final String avatarBaseUrl;
@@ -89,12 +90,15 @@ class RecentChatsTab extends ConsumerWidget {
                     ),
                     isThreeLine: true,
                     onTap: () {
-                      ref.read(activeChatProvider.notifier).state = ActiveChat(
-                        avatar: chat.avatar ?? '',
-                        fileId: chat.fileId,
-                        characterName: characterName,
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            avatarUrl: chat.avatar ?? '${chat.fileId}.png',
+                            fileId: chat.fileId,
+                            characterName: characterName,
+                          ),
+                        ),
                       );
-                      ref.read(shellTabIndexProvider.notifier).state = 1;
                     },
                   ),
                 ),
