@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/api/client.dart';
-import '../../core/theme/app_theme.dart';
-import '../../data/models/worldinfo.dart';
-import '../providers/providers.dart';
+import '../../../core/api/client.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../data/models/worldinfo.dart';
+import '../../providers/providers.dart';
 
 class WorldInfoScreen extends ConsumerStatefulWidget {
   final String characterName;
@@ -229,23 +229,22 @@ class _WorldInfoEntriesSheetState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('添加条目'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min(
-            children: [
-              TextField(
-                decoration: InputDecoration(labelText: '关键词（主要）'),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                decoration: InputDecoration(labelText: '关键词（次要）'),
-              ),
-              SizedBox(height: 8),
-              TextField(
-                decoration: InputDecoration(labelText: '内容'),
-                maxLines: 3,
-              ),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              decoration: InputDecoration(labelText: '关键词（主要）'),
+            ),
+            SizedBox(height: 8),
+            TextField(
+              decoration: InputDecoration(labelText: '关键词（次要）'),
+            ),
+            SizedBox(height: 8),
+            TextField(
+              decoration: InputDecoration(labelText: '内容'),
+              maxLines: 3,
+            ),
+          ],
         ),
         actions: [
           TextButton(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/update/update_service.dart';
-import '../providers/providers.dart';
-import 'welcome/welcome_screen.dart';
+import '../../../core/update/update_service.dart';
+import '../../providers/providers.dart';
+import '../welcome/welcome_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -150,7 +150,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     try {
-      await update_service.downloadUpdate(
+      await _updateService.downloadUpdate(
         update.downloadUrl,
         update.version,
         (received, total) {

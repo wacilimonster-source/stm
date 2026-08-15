@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:cookie_manager/cookie_manager.dart';
 
 class SillyTavernClient {
   late final Dio _dio;
@@ -16,8 +14,6 @@ class SillyTavernClient {
         'Content-Type': 'application/json',
       },
     ));
-
-    _dio.interceptors.add(CookieManager(CookieJar()));
   }
 
   Future<bool> checkConnection() async {
