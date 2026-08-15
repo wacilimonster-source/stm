@@ -1,0 +1,163 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:cookie_manager/cookie_manager.dart';
+
+class SillyTavernClient {
+  late final Dio _dio;
+  final String baseUrl;
+
+  SillyTavernClient({required this.baseUrl}) {
+    _dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(minutes: 5),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    _dio.interceptors.add(CookieManager(CookieJar()));
+  }
+
+  Future<bool> checkConnection() async {
+    try {
+      final response = await _dio.get('/');
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> login({String handle = 'default', String password = ''}) async {
+    await _dio.post('/api/users/public/login', data: {
+      'handle': handle,
+      'password': password,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getCharacters() async {
+    final response = await _dio.post('/api/characters/all');
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getCharacter(String avatarUrl) async {
+    final response = await _dio.post('/api/characters/get', data: {
+      'avatar_url': avatarUrl,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getRecentChats({int max = 20}) async {
+    final response = await _dio.post('/api/chats/recent', data: {
+      'max': max,
+      'pinned': [],
+    });
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getChats(String avatarUrl) async {
+    final response = await _dio.post('/api/characters/chats', data: {
+      'avatar_url': avatarUrl,
+    });
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getChatHistory(
+      String avatarUrl, String fileName) async {
+    final response = await _dio.post('/api/chats/get', data: {
+      'avatar_url': avatarUrl,
+      'file_name': fileName,
+    });
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<void> saveChat(
+    String avatarUrl,
+    String fileName,
+    List<Map<String, dynamic>> messages,
+  ) async {
+    await _dio.post('/api/chats/save', data: {
+      'avatar_url': avatarUrl,
+      'file_name': fileName,
+      'chat': messages,
+    });
+  }
+
+  Stream<String> sendMessageStream(Map<String, dynamic> body) async* {
+    try {
+      final response = await _dio.post(
+        '/api/backends/chat-completions/generate',
+        data: body,
+        options: Options(responseType: ResponseType.stream),
+      );
+
+      final stream = response.data as Stream<List<int>>;
+      String buffer = '';
+
+      await for (final chunk in stream) {
+        buffer += utf8.decode(chunk);
+
+        while (buffer.contains('\n')) {
+          final lineEnd = buffer.indexOf('\n');
+          final line = buffer.substring(0, lineEnd).trim();
+          buffer = buffer.substring(lineEnd + 1);
+
+          if (line.startsWith('data:')) {
+            final data = line.substring(5).trim();
+            if (data == '[DONE]') {
+              return;
+            }
+            yield data;
+          }
+        }
+      }
+    } catch (e) {
+      yield '{"error": "$e"}';
+    }
+  }
+
+  Future<Map<String, dynamic>> sendMessageNonStream(
+      Map<String, dynamic> body) async {
+    final response = await _dio.post(
+      '/api/backends/chat-completions/generate',
+      data: body,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> getWorldInfoList() async {
+    final response = await _dio.post('/api/worldinfo/list');
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> getWorldInfo(String name) async {
+    final response = await _dio.post('/api/worldinfo/get', data: {
+      'name': name,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<void> editWorldInfo(
+      String name, Map<String, dynamic> data) async {
+    await _dio.post('/api/worldinfo/edit', data: {
+      'name': name,
+      'data': data,
+    });
+  }
+}

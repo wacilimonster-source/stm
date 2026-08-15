@@ -1,0 +1,38 @@
+name: pocket_tavern
+description: "掌上酒馆 - 移动端 SillyTavern 客户端"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP
+  dio: ^5.4.0
+  dio_cookie_manager: ^3.1.0
+
+  # 状态管理
+  flutter_riverpod: ^2.4.0
+
+  # 本地存储
+  shared_preferences: ^2.2.0
+
+  # JSON
+  json_annotation: ^4.8.0
+
+  # 其他
+  flutter_svg: ^2.0.0
+  intl: ^0.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.0
+  json_serializable: ^6.7.0
+
+flutter:
+  uses-material-design: true
