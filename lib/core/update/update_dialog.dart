@@ -78,6 +78,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   double _progress = 0;
   bool _finished = false;
   String? _error;
+  String? _savedPath;
 
   @override
   void initState() {
@@ -87,7 +88,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
 
   Future<void> _download() async {
     try {
-      await widget.service.downloadUpdate(
+      final path = await widget.service.downloadUpdate(
         widget.update.downloadUrl,
         widget.update.version,
         (received, total) {
@@ -97,7 +98,10 @@ class _DownloadDialogState extends State<_DownloadDialog> {
         },
       );
       if (mounted) {
-        setState(() => _finished = true);
+        setState(() {
+          _finished = true;
+          _savedPath = path;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -123,8 +127,10 @@ class _DownloadDialogState extends State<_DownloadDialog> {
             const SizedBox(height: 12),
             Text(
               _finished
-                  ? '请手动安装 APK'
+                  ? '已保存到：\n$_savedPath'
                   : '${(_progress * 100).toStringAsFixed(1)}%',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],

@@ -1,4 +1,5 @@
 ﻿import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 
 class UpdateService {
   static const String _owner = 'wacilimonster-source';
@@ -34,7 +35,7 @@ class UpdateService {
         }
       }
     } catch (e) {
-      // 蹇界暐閿欒
+      // 忽略错误
     }
     return null;
   }
@@ -61,16 +62,22 @@ class UpdateService {
     return 0;
   }
 
-  Future<void> downloadUpdate(
+  Future<String> downloadUpdate(
     String url,
     String version,
     void Function(int received, int total)? onProgress,
   ) async {
+    final dir = await getExternalStorageDirectory();
+    final savePath = dir == null
+        ? 'update_$version.apk'
+        : '${dir.path}/update_$version.apk';
+
     await _dio.download(
       url,
-      'update_$version.apk',
+      savePath,
       onReceiveProgress: onProgress,
     );
+    return savePath;
   }
 }
 

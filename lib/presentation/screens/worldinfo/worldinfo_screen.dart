@@ -25,11 +25,11 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('涓栫晫涔?),
+        title: const Text('世界书'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '鏂板缓涓栫晫涔?,
+            tooltip: '新建世界书',
             onPressed: () => _createWorldInfo(context),
           ),
         ],
@@ -37,7 +37,7 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
       body: worldInfosAsync.when(
         data: (worldInfos) {
           if (worldInfos.isEmpty) {
-            return const Center(child: Text('鏆傛棤涓栫晫涔n鐐瑰嚮鍙充笂瑙?+ 鏂板缓', textAlign: TextAlign.center));
+            return const Center(child: Text('暂无世界书\n点击右上角 + 新建', textAlign: TextAlign.center));
           }
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(worldInfoListProvider),
@@ -67,7 +67,7 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.book_outlined),
                       title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('$entryCount 涓潯鐩?),
+                      subtitle: Text('$entryCount 个条目'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
                         Navigator.of(context).push(
@@ -94,20 +94,20 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('鏂板缓涓栫晫涔?),
+        title: const Text('新建世界书'),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: '涓栫晫涔﹀悕绉?),
+          decoration: const InputDecoration(hintText: '世界书名称'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('鍙栨秷'),
+            child: const Text('取消'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('鍒涘缓'),
+            child: const Text('创建'),
           ),
         ],
       ),
@@ -122,14 +122,14 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
       await connection.client!.saveWorldInfo(name, {'entries': <String, dynamic>{}});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('宸插垱寤恒€?name銆?)),
+          SnackBar(content: Text('已创建「$name」')),
         );
       }
       ref.invalidate(worldInfoListProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('鍒涘缓澶辫触: $e')),
+          SnackBar(content: Text('创建失败: $e')),
         );
       }
     }
@@ -139,19 +139,19 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('鍒犻櫎涓栫晫涔?),
-        content: Text('纭畾鍒犻櫎銆?name銆嶅悧锛?),
+        title: const Text('删除世界书'),
+        content: Text('确定删除「$name」吗？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('鍙栨秷'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('鍒犻櫎'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -168,7 +168,7 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('鍒犻櫎澶辫触: $e')),
+          SnackBar(content: Text('删除失败: $e')),
         );
       }
       return false;
@@ -207,7 +207,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '鏂板鏉＄洰',
+            tooltip: '新增条目',
             onPressed: () => _createEntry(context),
           ),
         ],
@@ -217,7 +217,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
           final entries = worldInfo.entries.values.toList()
             ..sort((a, b) => a.order.compareTo(b.order));
           if (entries.isEmpty) {
-            return const Center(child: Text('鏆傛棤鏉＄洰\n鐐瑰嚮鍙充笂瑙?+ 鏂板', textAlign: TextAlign.center));
+            return const Center(child: Text('暂无条目\n点击右上角 + 新增', textAlign: TextAlign.center));
           }
           return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -251,7 +251,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '椤哄簭: ${entry.order}',
+                      '顺序: ${entry.order}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     trailing: const Icon(Icons.edit_outlined),
@@ -309,7 +309,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('鏂板澶辫触: $e')),
+          SnackBar(content: Text('新增失败: $e')),
         );
       }
     }
@@ -323,19 +323,19 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('鍒犻櫎鏉＄洰'),
-        content: const Text('纭畾鍒犻櫎姝ゆ潯鐩悧锛?),
+        title: const Text('删除条目'),
+        content: const Text('确定删除此条目吗？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('鍙栨秷'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('鍒犻櫎'),
+            child: const Text('删除'),
           ),
         ],
       ),
@@ -371,7 +371,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('淇濆瓨澶辫触: $e')),
+          SnackBar(content: Text('保存失败: $e')),
         );
       }
     }
@@ -416,11 +416,11 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry.id.isEmpty ? '鏂板鏉＄洰' : '缂栬緫鏉＄洰'),
+        title: Text(widget.entry.id.isEmpty ? '新增条目' : '编辑条目'),
         actions: [
           TextButton(
             onPressed: _save,
-            child: const Text('淇濆瓨'),
+            child: const Text('保存'),
           ),
         ],
       ),
@@ -428,7 +428,7 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
         padding: const EdgeInsets.all(16),
         children: [
           SwitchListTile(
-            title: const Text('鍚敤姝ゆ潯鐩?),
+            title: const Text('启用此条目'),
             value: _enabled,
             onChanged: (value) => setState(() => _enabled = value),
           ),
@@ -437,7 +437,7 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
             controller: _orderController,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: '鎻掑叆椤哄簭',
+              labelText: '插入顺序',
               border: OutlineInputBorder(),
             ),
           ),
@@ -446,8 +446,8 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
             controller: _contentController,
             maxLines: 12,
             decoration: const InputDecoration(
-              labelText: '鍐呭',
-              hintText: '杈撳叆涓栫晫璁惧畾鍐呭...',
+              labelText: '内容',
+              hintText: '输入世界设定内容...',
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
@@ -481,14 +481,14 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('宸蹭繚瀛?)),
+          const SnackBar(content: Text('已保存')),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('淇濆瓨澶辫触: $e')),
+          SnackBar(content: Text('保存失败: $e')),
         );
       }
     }
