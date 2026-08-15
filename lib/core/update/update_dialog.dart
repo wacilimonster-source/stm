@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'update_service.dart';
 
 Future<void> checkUpdateAndDownload(BuildContext context, UpdateService service) async {
@@ -79,6 +80,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   bool _finished = false;
   String? _error;
   String? _savedPath;
+  bool _opening = false;
 
   @override
   void initState() {
@@ -110,6 +112,20 @@ class _DownloadDialogState extends State<_DownloadDialog> {
     }
   }
 
+  Future<void> _install() async {
+    if (_savedPath == null) return;
+    setState(() => _opening = true);
+    final result = await OpenFilex.open(_savedPath!);
+    if (mounted) {
+      setState(() => _opening = false);
+      if (result.type != ResultType.done && result.type != ResultType.noAppToOpen) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('打开安装界面失败: ${result.message}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -136,10 +152,26 @@ class _DownloadDialogState extends State<_DownloadDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
-        ),
+        if (_finished && _error == null) ...[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('稍后安装'),
+          ),
+          FilledButton(
+            onPressed: _opening ? null : _install,
+            child: _opening
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('立即安装'),
+          ),
+        ] else
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
       ],
     );
   }

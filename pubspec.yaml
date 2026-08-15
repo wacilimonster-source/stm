@@ -1,7 +1,7 @@
-name: pocket_tavern
+﻿name: pocket_tavern
 description: "掌上酒馆 - 移动端 SillyTavern 客户端"
 publish_to: 'none'
-version: 1.2.0+3
+version: 1.2.1+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -27,7 +27,8 @@ dependencies:
   # 其他
   flutter_svg: ^2.0.0
   intl: ^0.18.0
-  path_provider: ^2.1.5
+  path_provider: ^2.1.0
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
