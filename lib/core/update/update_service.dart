@@ -3,7 +3,7 @@
 class UpdateService {
   static const String _owner = 'wacilimonster-source';
   static const String _repo = 'stm';
-  static const String _currentVersion = '1.0.0';
+  static const String currentVersion = '1.1.0';
 
   final Dio _dio;
 
@@ -25,7 +25,7 @@ class UpdateService {
         final latestVersion = (data['tag_name'] as String?)?.replaceFirst('v', '') ?? '0.0.0';
         final downloadUrl = _extractApkUrl(data['assets'] as List<dynamic>);
 
-        if (_compareVersion(latestVersion, _currentVersion) > 0 && downloadUrl != null) {
+        if (_compareVersion(latestVersion, currentVersion) > 0 && downloadUrl != null) {
           return UpdateInfo(
             version: latestVersion,
             downloadUrl: downloadUrl,

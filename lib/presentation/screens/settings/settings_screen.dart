@@ -76,11 +76,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           _SectionCard(
-            children: const [
+            children: [
               ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('版本'),
-                subtitle: Text('1.0.0'),
+                leading: const Icon(Icons.info_outline),
+                title: const Text('版本'),
+                subtitle: Text(UpdateService.currentVersion),
               ),
             ],
           ),
