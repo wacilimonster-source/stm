@@ -1,5 +1,4 @@
-import 'dart:convert';
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 
 class UpdateService {
   static const String _owner = 'wacilimonster-source';
@@ -35,7 +34,7 @@ class UpdateService {
         }
       }
     } catch (e) {
-      // 忽略错误
+      // 蹇界暐閿欒
     }
     return null;
   }

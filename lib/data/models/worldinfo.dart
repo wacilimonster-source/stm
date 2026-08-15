@@ -3,7 +3,7 @@ class WorldInfoEntry {
   final List<String> key;
   final List<String> secondaryKeys;
   final String content;
-  final int insertionOrder;
+  final int order;
   final bool enabled;
 
   WorldInfoEntry({
@@ -11,7 +11,7 @@ class WorldInfoEntry {
     required this.key,
     this.secondaryKeys = const [],
     required this.content,
-    this.insertionOrder = 0,
+    this.order = 0,
     this.enabled = true,
   });
 
@@ -19,19 +19,21 @@ class WorldInfoEntry {
     return WorldInfoEntry(
       id: id,
       key: (json['key'] as List<dynamic>?)?.cast<String>() ?? [],
-      secondaryKeys: (json['secondary_keys'] as List<dynamic>?)?.cast<String>() ?? [],
+      secondaryKeys:
+          (json['keysecondary'] as List<dynamic>?)?.cast<String>() ?? [],
       content: json['content'] ?? '',
-      insertionOrder: json['insertion_order'] ?? 0,
-      enabled: json['enabled'] ?? true,
+      order: json['order'] ?? 0,
+      enabled: json['disable'] != true,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'key': key,
-      'secondary_keys': secondaryKeys,
+      'keysecondary': secondaryKeys,
       'content': content,
-      'insertion_order': insertionOrder,
+      'order': order,
+      'disable': !enabled,
       'enabled': enabled,
     };
   }
@@ -41,7 +43,7 @@ class WorldInfoEntry {
     List<String>? key,
     List<String>? secondaryKeys,
     String? content,
-    int? insertionOrder,
+    int? order,
     bool? enabled,
   }) {
     return WorldInfoEntry(
@@ -49,7 +51,7 @@ class WorldInfoEntry {
       key: key ?? this.key,
       secondaryKeys: secondaryKeys ?? this.secondaryKeys,
       content: content ?? this.content,
-      insertionOrder: insertionOrder ?? this.insertionOrder,
+      order: order ?? this.order,
       enabled: enabled ?? this.enabled,
     );
   }
@@ -68,7 +70,9 @@ class WorldInfo {
     final entriesMap = <String, WorldInfoEntry>{};
     final entries = json['entries'] as Map<String, dynamic>? ?? {};
     entries.forEach((key, value) {
-      entriesMap[key] = WorldInfoEntry.fromJson(key, value as Map<String, dynamic>);
+      if (value is Map<String, dynamic>) {
+        entriesMap[key] = WorldInfoEntry.fromJson(key, value);
+      }
     });
     return WorldInfo(
       name: json['name'] ?? name,

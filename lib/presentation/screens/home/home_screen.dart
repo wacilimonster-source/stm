@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/providers.dart';
 import 'recent_chats_tab.dart';
 import 'characters_tab.dart';
-import '../settings/settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -30,21 +29,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final client = ref.watch(connectionProvider).client;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('掌上酒馆'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -55,9 +44,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          RecentChatsTab(),
-          CharactersTab(),
+        children: [
+          RecentChatsTab(
+            avatarBaseUrl: client?.baseUrl ?? '',
+          ),
+          CharactersTab(
+            avatarBaseUrl: client?.baseUrl ?? '',
+          ),
         ],
       ),
     );

@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'core/theme/app_theme.dart';
 import 'presentation/providers/providers.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/home/main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +34,7 @@ class PocketTavernApp extends ConsumerWidget {
       theme: theme,
       debugShowCheckedModeBanner: false,
       home: connection.status == ConnectionStatus.connected
-          ? const HomeScreen()
+          ? const MainShell()
           : const WelcomeScreen(),
     );
   }

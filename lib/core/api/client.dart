@@ -9,6 +9,10 @@ class SillyTavernClient {
   final String baseUrl;
   String? _csrfToken;
 
+  String avatarUrl(String avatarFileName) {
+    return '$baseUrl/characters/$avatarFileName';
+  }
+
   SillyTavernClient({required this.baseUrl}) {
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
@@ -173,6 +177,20 @@ class SillyTavernClient {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<void> deleteChat(String avatarUrl, String fileId) async {
+    await _dio.post('/api/chats/delete', data: {
+      'avatar_url': avatarUrl,
+      'chatfile': fileId,
+    });
+  }
+
+  Future<void> deleteCharacter(String avatarUrl, {bool deleteChats = true}) async {
+    await _dio.post('/api/characters/delete', data: {
+      'avatar_url': avatarUrl,
+      'delete_chats': deleteChats,
+    });
+  }
+
   Future<List<Map<String, dynamic>>> getWorldInfoList() async {
     final response = await _dio.post('/api/worldinfo/list');
     if (response.data is List) {
@@ -188,11 +206,16 @@ class SillyTavernClient {
     return response.data as Map<String, dynamic>;
   }
 
-  Future<void> editWorldInfo(
-      String name, Map<String, dynamic> data) async {
+  Future<void> saveWorldInfo(String name, Map<String, dynamic> data) async {
     await _dio.post('/api/worldinfo/edit', data: {
       'name': name,
       'data': data,
+    });
+  }
+
+  Future<void> deleteWorldInfo(String name) async {
+    await _dio.post('/api/worldinfo/delete', data: {
+      'name': name,
     });
   }
 }

@@ -121,3 +121,21 @@ final themeDataProvider = Provider<ThemeData>((ref) {
   final isDark = ref.watch(isDarkModeProvider);
   return isDark ? AppTheme.darkTheme : AppTheme.lightTheme;
 });
+
+class ActiveChat {
+  final String avatar;
+  final String fileId;
+  final String characterName;
+
+  ActiveChat({
+    required this.avatar,
+    required this.fileId,
+    required this.characterName,
+  });
+}
+
+final activeChatProvider = StateProvider<ActiveChat?>((ref) => null);
+
+final shellTabIndexProvider = StateProvider<int>((ref) => 0);
+
+final selectedWorldInfoProvider = StateProvider<String?>((ref) => null);

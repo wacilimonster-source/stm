@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/update/update_dialog.dart';
 import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
-import '../welcome/welcome_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -19,7 +17,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isDark = ref.watch(isDarkModeProvider);
     final connection = ref.watch(connectionProvider);
 
@@ -28,52 +25,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         title: const Text('设置'),
       ),
       body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          _SectionTitle('外观'),
-          SwitchListTile(
-            title: const Text('深色模式'),
-            value: isDark,
-            onChanged: (_) => ref.read(themeProvider.notifier).toggle(),
+          _SectionCard(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.dark_mode_outlined),
+                title: const Text('深色模式'),
+                trailing: Switch(
+                  value: isDark,
+                  onChanged: (_) => ref.read(themeProvider.notifier).toggle(),
+                ),
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionTitle('连接'),
-          ListTile(
-            title: const Text('服务器地址'),
-            subtitle: Text(connection.client?.baseUrl ?? '未连接'),
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.dns_outlined),
+                title: const Text('服务器地址'),
+                subtitle: Text(connection.client?.baseUrl ?? '未连接'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.link_off),
+                title: const Text('断开连接'),
+                onTap: () async {
+                  await ref.read(connectionProvider.notifier).disconnect();
+                },
+              ),
+            ],
           ),
-          ListTile(
-            title: const Text('断开连接'),
-            onTap: () async {
-              await ref.read(connectionProvider.notifier).disconnect();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => const WelcomeScreen(),
-                  ),
-                  (route) => false,
-                );
-              }
-            },
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.system_update_outlined),
+                title: const Text('检查更新'),
+                trailing: _isCheckingUpdate
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.chevron_right),
+                onTap: _isCheckingUpdate ? null : _checkUpdate,
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionTitle('更新'),
-          ListTile(
-            title: const Text('检查更新'),
-            leading: const Icon(Icons.system_update),
-            trailing: _isCheckingUpdate
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.chevron_right),
-            onTap: _isCheckingUpdate ? null : _checkUpdate,
-          ),
-          const Divider(),
-          _SectionTitle('关于'),
-          const ListTile(
-            title: Text('版本'),
-            subtitle: Text('1.0.0'),
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: const [
+              ListTile(
+                leading: Icon(Icons.info_outline),
+                title: Text('版本'),
+                subtitle: Text('1.0.0'),
+              ),
+            ],
           ),
         ],
       ),
@@ -93,21 +102,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
+class _SectionCard extends StatelessWidget {
+  final List<Widget> children;
 
-  const _SectionTitle(this.title);
+  const _SectionCard({required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        ),
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: children,
       ),
     );
   }

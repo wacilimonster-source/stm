@@ -120,6 +120,26 @@ class ChatNotifier extends StateNotifier<ChatState> {
         ],
       };
 
+      final worldInfoName = _ref.read(selectedWorldInfoProvider);
+      if (worldInfoName != null && worldInfoName.isNotEmpty) {
+        try {
+          final wiData = await connection.client!.getWorldInfo(worldInfoName);
+          final entries = wiData['entries'] as Map<String, dynamic>? ?? {};
+          final worldContent = entries.values
+              .whereType<Map<String, dynamic>>()
+              .where((e) => e['disable'] != true)
+              .map((e) => e['content']?.toString() ?? '')
+              .where((c) => c.isNotEmpty)
+              .join('\n\n');
+          if (worldContent.isNotEmpty) {
+            (body['messages'] as List).insert(0, {
+              'role': 'system',
+              'content': '以下是世界设定，请在对话中遵循：\n$worldContent',
+            });
+          }
+        } catch (_) {}
+      }
+
       String fullResponse = '';
       String? thinking;
 
@@ -167,5 +187,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
           .toList(),
     );
     await sendMessage(lastUserMessage.content);
+  }
+
+  void removeMessageAt(int index) {
+    if (index < 0 || index >= state.messages.length) return;
+    state = state.copyWith(
+      messages: [...state.messages]..removeAt(index),
+    );
   }
 }
