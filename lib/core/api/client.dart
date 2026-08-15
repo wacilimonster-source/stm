@@ -58,10 +58,17 @@ class SillyTavernClient {
   }
 
   Future<void> login({String handle = 'default', String password = ''}) async {
-    await _dio.post('/api/users/public/login', data: {
-      'handle': handle,
-      'password': password,
-    });
+    try {
+      await _dio.post('/api/users/public/login', data: {
+        'handle': handle,
+        'password': password,
+      });
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getCharacters() async {
