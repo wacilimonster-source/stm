@@ -154,3 +154,7 @@ final apiProxyProvider = Provider<String?>((ref) {
 final apiSourceProvider = Provider<String>((ref) {
   return ref.watch(localStorageProvider).apiSource;
 });
+
+final apiCustomUrlProvider = Provider<String>((ref) {
+  return ref.watch(localStorageProvider).apiCustomUrl;
+});

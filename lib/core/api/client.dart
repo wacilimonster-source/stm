@@ -219,12 +219,16 @@ class SillyTavernClient {
     });
   }
 
-  Future<List<String>> getAvailableModels(String source) async {
+  Future<List<String>> getAvailableModels(
+    String source, {
+    String? customUrl,
+  }) async {
     try {
       final response = await _dio.post(
         '/api/backends/chat-completions/status',
         data: {
           'chat_completion_source': source,
+          if (source == 'custom') 'custom_url': customUrl,
         },
       );
       final data = response.data;

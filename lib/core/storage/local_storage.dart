@@ -7,6 +7,7 @@ class LocalStorage {
   static const String _keyApiModel = 'api_model';
   static const String _keyApiProxy = 'api_proxy';
   static const String _keyApiSource = 'api_source';
+  static const String _keyApiCustomUrl = 'api_custom_url';
 
   final SharedPreferences _prefs;
 
@@ -46,9 +47,16 @@ class LocalStorage {
     await _prefs.setString(_keyApiProxy, value);
   }
 
-  String get apiSource => _prefs.getString(_keyApiSource) ?? 'deepseek';
+  String get apiSource => _prefs.getString(_keyApiSource) ?? 'custom';
 
   Future<void> setApiSource(String value) async {
     await _prefs.setString(_keyApiSource, value);
+  }
+
+  String get apiCustomUrl =>
+      _prefs.getString(_keyApiCustomUrl) ?? 'https://opencode.ai/zen/go/v1';
+
+  Future<void> setApiCustomUrl(String value) async {
+    await _prefs.setString(_keyApiCustomUrl, value);
   }
 }

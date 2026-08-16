@@ -131,6 +131,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final apiModel = _ref.read(apiModelProvider);
       final apiProxy = _ref.read(apiProxyProvider);
       final apiSource = _ref.read(apiSourceProvider);
+      final apiCustomUrl = _ref.read(apiCustomUrlProvider);
 
       final body = {
         'chat_completion_source': apiSource,
@@ -140,15 +141,18 @@ class ChatNotifier extends StateNotifier<ChatState> {
         ],
       };
 
-      if (apiModel != null && apiModel.isNotEmpty) {
-        body['model'] = apiModel;
-      }
-      if (apiKey != null && apiKey.isNotEmpty) {
+      if (apiSource == 'custom') {
+        body['custom_url'] = apiCustomUrl;
+      } else if (apiKey != null && apiKey.isNotEmpty) {
         body['reverse_proxy'] =
             (apiProxy != null && apiProxy.isNotEmpty)
                 ? apiProxy
                 : 'https://api.openai.com/v1';
         body['proxy_password'] = apiKey;
+      }
+
+      if (apiModel != null && apiModel.isNotEmpty) {
+        body['model'] = apiModel;
       }
 
       final worldInfoNames = _ref

@@ -17,6 +17,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _apiModelController = TextEditingController();
   final _apiProxyController = TextEditingController();
+  final _apiCustomUrlController = TextEditingController();
   List<String> _availableModels = [];
   bool _loadingModels = false;
 
@@ -28,7 +29,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _apiKeyController.text = storage.apiKey ?? '';
       _apiModelController.text = storage.apiModel ?? '';
       _apiProxyController.text = storage.apiProxy ?? '';
-      _loadModels(storage.apiSource);
+      _apiCustomUrlController.text = storage.apiCustomUrl;
+      _loadModels(storage.apiSource, customUrl: storage.apiCustomUrl);
     });
   }
 
@@ -43,11 +45,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ('siliconflow', '硅基流动'),
   ];
 
-  Future<void> _loadModels(String source) async {
+  Future<void> _loadModels(String source, {String? customUrl}) async {
     final client = ref.read(connectionProvider).client;
     if (client == null) return;
     setState(() => _loadingModels = true);
-    final models = await client.getAvailableModels(source);
+    final models = await client.getAvailableModels(
+      source,
+      customUrl: customUrl,
+    );
     if (mounted) {
       setState(() {
         _availableModels = models;
@@ -61,6 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _apiKeyController.dispose();
     _apiModelController.dispose();
     _apiProxyController.dispose();
+    _apiCustomUrlController.dispose();
     super.dispose();
   }
 
@@ -140,55 +146,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               .read(localStorageProvider)
                               .setApiSource(value);
                           ref.invalidate(apiSourceProvider);
-                          await _loadModels(value);
+                          _apiModelController.text = '';
+                          await _loadModels(
+                            value,
+                            customUrl: _apiCustomUrlController.text,
+                          );
                         }
                       },
                     );
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: _loadingModels
-                    ? const LinearProgressIndicator()
-                    : _availableModels.isEmpty
-                        ? TextField(
-                            controller: _apiModelController,
+              Consumer(
+                builder: (context, ref, _) {
+                  final source = ref.watch(apiSourceProvider);
+                  return source == 'custom'
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: TextField(
+                            controller: _apiCustomUrlController,
                             decoration: const InputDecoration(
-                              labelText: '模型名称',
-                              hintText: '如 deepseek-chat',
+                              labelText: 'API 地址（服务端已配好的地址）',
+                              hintText: 'https://opencode.ai/zen/go/v1',
                               border: OutlineInputBorder(),
                               isDense: true,
                             ),
                             onSubmitted: (_) => _saveApiConfig(),
-                          )
-                        : DropdownButtonFormField<String>(
-                            value: _availableModels
-                                    .contains(_apiModelController.text)
-                                ? _apiModelController.text
-                                : null,
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: TextField(
+                            controller: _apiProxyController,
                             decoration: const InputDecoration(
-                              labelText: '模型名称',
+                              labelText: 'API 地址',
+                              hintText: '默认 https://api.openai.com/v1',
                               border: OutlineInputBorder(),
                               isDense: true,
                             ),
-                            items: _availableModels
-                                .map((m) => DropdownMenuItem(
-                                      value: m,
-                                      child: Text(
-                                        m,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ))
-                                .toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                _apiModelController.text = value;
-                                _saveApiConfig();
-                              }
-                            },
+                            onSubmitted: (_) => _saveApiConfig(),
                           ),
+                        );
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _loadingModels
+                          ? const LinearProgressIndicator()
+                          : _availableModels.isEmpty
+                              ? TextField(
+                                  controller: _apiModelController,
+                                  decoration: const InputDecoration(
+                                    labelText: '模型名称',
+                                    hintText: '如 kimi-k3',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                  onSubmitted: (_) => _saveApiConfig(),
+                                )
+                              : DropdownButtonFormField<String>(
+                                  value: _availableModels
+                                          .contains(_apiModelController.text)
+                                      ? _apiModelController.text
+                                      : null,
+                                  decoration: const InputDecoration(
+                                    labelText: '模型名称',
+                                    border: OutlineInputBorder(),
+                                    isDense: true,
+                                  ),
+                                  items: _availableModels
+                                      .map((m) => DropdownMenuItem(
+                                            value: m,
+                                            child: Text(
+                                              m,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      _apiModelController.text = value;
+                                      _saveApiConfig();
+                                    }
+                                  },
+                                ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: '重新加载模型列表',
+                      onPressed: _loadingModels
+                          ? null
+                          : () => _loadModels(
+                                ref.read(apiSourceProvider),
+                                customUrl: _apiCustomUrlController.text,
+                              ),
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -198,19 +257,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   decoration: const InputDecoration(
                     labelText: 'API Key（可选）',
                     hintText: '不填则使用服务端已保存的 Key',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _saveApiConfig(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: TextField(
-                  controller: _apiProxyController,
-                  decoration: const InputDecoration(
-                    labelText: 'API 地址',
-                    hintText: '默认 https://api.openai.com/v1',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -266,9 +312,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await storage.setApiKey(_apiKeyController.text.trim());
     await storage.setApiModel(_apiModelController.text.trim());
     await storage.setApiProxy(_apiProxyController.text.trim());
+    await storage.setApiCustomUrl(_apiCustomUrlController.text.trim());
     ref.invalidate(apiKeyProvider);
     ref.invalidate(apiModelProvider);
     ref.invalidate(apiProxyProvider);
+    ref.invalidate(apiCustomUrlProvider);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已保存')),
