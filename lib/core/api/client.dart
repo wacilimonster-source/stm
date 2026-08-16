@@ -218,4 +218,26 @@ class SillyTavernClient {
       'name': name,
     });
   }
+
+  Future<List<String>> getAvailableModels(String source) async {
+    try {
+      final response = await _dio.post(
+        '/api/backends/chat-completions/status',
+        data: {
+          'chat_completion_source': source,
+        },
+      );
+      final data = response.data;
+      if (data is Map && data['data'] is List) {
+        return (data['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map((m) => m['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+      }
+    } catch (e) {
+      // 该源未配置 key 或不可用
+    }
+    return [];
+  }
 }

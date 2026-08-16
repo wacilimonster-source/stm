@@ -17,6 +17,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _apiModelController = TextEditingController();
   final _apiProxyController = TextEditingController();
+  List<String> _availableModels = [];
+  bool _loadingModels = false;
 
   @override
   void initState() {
@@ -26,7 +28,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _apiKeyController.text = storage.apiKey ?? '';
       _apiModelController.text = storage.apiModel ?? '';
       _apiProxyController.text = storage.apiProxy ?? '';
+      _loadModels(storage.apiSource);
     });
+  }
+
+  static const _sources = [
+    ('deepseek', 'DeepSeek'),
+    ('zai', '智谱 Z.ai'),
+    ('custom', '自定义 Custom'),
+    ('claude', 'Claude'),
+    ('openrouter', 'OpenRouter'),
+    ('makersuite', 'Google Gemini'),
+    ('openai', 'OpenAI'),
+    ('siliconflow', '硅基流动'),
+  ];
+
+  Future<void> _loadModels(String source) async {
+    final client = ref.read(connectionProvider).client;
+    if (client == null) return;
+    setState(() => _loadingModels = true);
+    final models = await client.getAvailableModels(source);
+    if (mounted) {
+      setState(() {
+        _availableModels = models;
+        _loadingModels = false;
+      });
+    }
   }
 
   @override
@@ -85,9 +112,83 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Text(
-                  'AI 配置（可选，用于生成对话）',
+                  'AI 配置（选择服务端已配置的源）',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final source = ref.watch(apiSourceProvider);
+                    return DropdownButtonFormField<String>(
+                      value: source,
+                      decoration: const InputDecoration(
+                        labelText: '生成源',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: _sources
+                          .map((s) => DropdownMenuItem(
+                                value: s.$1,
+                                child: Text(s.$2),
+                              ))
+                          .toList(),
+                      onChanged: (value) async {
+                        if (value != null) {
+                          await ref
+                              .read(localStorageProvider)
+                              .setApiSource(value);
+                          ref.invalidate(apiSourceProvider);
+                          await _loadModels(value);
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: _loadingModels
+                    ? const LinearProgressIndicator()
+                    : _availableModels.isEmpty
+                        ? TextField(
+                            controller: _apiModelController,
+                            decoration: const InputDecoration(
+                              labelText: '模型名称',
+                              hintText: '如 deepseek-chat',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            onSubmitted: (_) => _saveApiConfig(),
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _availableModels
+                                    .contains(_apiModelController.text)
+                                ? _apiModelController.text
+                                : null,
+                            decoration: const InputDecoration(
+                              labelText: '模型名称',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: _availableModels
+                                .map((m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(
+                                        m,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                _apiModelController.text = value;
+                                _saveApiConfig();
+                              }
+                            },
+                          ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -95,21 +196,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   controller: _apiKeyController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'API Key',
-                    hintText: '服务端未配置时在此填写',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _saveApiConfig(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: TextField(
-                  controller: _apiModelController,
-                  decoration: const InputDecoration(
-                    labelText: '模型名称',
-                    hintText: '如 gpt-4o-mini / deepseek-chat',
+                    labelText: 'API Key（可选）',
+                    hintText: '不填则使用服务端已保存的 Key',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),

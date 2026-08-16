@@ -1,10 +1,10 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 
 class UpdateService {
   static const String _owner = 'wacilimonster-source';
   static const String _repo = 'stm';
-  static const String currentVersion = '1.3.0';
+  static const String currentVersion = '1.4.0';
 
   final Dio _dio;
 

@@ -150,3 +150,7 @@ final apiModelProvider = Provider<String?>((ref) {
 final apiProxyProvider = Provider<String?>((ref) {
   return ref.watch(localStorageProvider).apiProxy;
 });
+
+final apiSourceProvider = Provider<String>((ref) {
+  return ref.watch(localStorageProvider).apiSource;
+});

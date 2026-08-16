@@ -130,9 +130,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final apiKey = _ref.read(apiKeyProvider);
       final apiModel = _ref.read(apiModelProvider);
       final apiProxy = _ref.read(apiProxyProvider);
+      final apiSource = _ref.read(apiSourceProvider);
 
       final body = {
-        'chat_completion_source': 'openai',
+        'chat_completion_source': apiSource,
         'stream': true,
         'messages': [
           {'role': 'user', 'content': content}

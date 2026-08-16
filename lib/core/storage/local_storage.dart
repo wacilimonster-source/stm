@@ -6,6 +6,7 @@ class LocalStorage {
   static const String _keyApiKey = 'api_key';
   static const String _keyApiModel = 'api_model';
   static const String _keyApiProxy = 'api_proxy';
+  static const String _keyApiSource = 'api_source';
 
   final SharedPreferences _prefs;
 
@@ -43,5 +44,11 @@ class LocalStorage {
 
   Future<void> setApiProxy(String value) async {
     await _prefs.setString(_keyApiProxy, value);
+  }
+
+  String get apiSource => _prefs.getString(_keyApiSource) ?? 'deepseek';
+
+  Future<void> setApiSource(String value) async {
+    await _prefs.setString(_keyApiSource, value);
   }
 }
