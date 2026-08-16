@@ -14,6 +14,28 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _updateService = UpdateService();
   bool _isCheckingUpdate = false;
+  final _apiKeyController = TextEditingController();
+  final _apiModelController = TextEditingController();
+  final _apiProxyController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final storage = ref.read(localStorageProvider);
+      _apiKeyController.text = storage.apiKey ?? '';
+      _apiModelController.text = storage.apiModel ?? '';
+      _apiProxyController.text = storage.apiProxy ?? '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _apiKeyController.dispose();
+    _apiModelController.dispose();
+    _apiProxyController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +82,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 16),
           _SectionCard(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(
+                  'AI 配置（可选，用于生成对话）',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TextField(
+                  controller: _apiKeyController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'API Key',
+                    hintText: '服务端未配置时在此填写',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _saveApiConfig(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TextField(
+                  controller: _apiModelController,
+                  decoration: const InputDecoration(
+                    labelText: '模型名称',
+                    hintText: '如 gpt-4o-mini / deepseek-chat',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _saveApiConfig(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TextField(
+                  controller: _apiProxyController,
+                  decoration: const InputDecoration(
+                    labelText: 'API 地址',
+                    hintText: '默认 https://api.openai.com/v1',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) => _saveApiConfig(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: _saveApiConfig,
+                    child: const Text('保存配置'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            children: [
               ListTile(
                 leading: const Icon(Icons.system_update_outlined),
                 title: const Text('检查更新'),
@@ -87,6 +171,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _saveApiConfig() async {
+    final storage = ref.read(localStorageProvider);
+    await storage.setApiKey(_apiKeyController.text.trim());
+    await storage.setApiModel(_apiModelController.text.trim());
+    await storage.setApiProxy(_apiProxyController.text.trim());
+    ref.invalidate(apiKeyProvider);
+    ref.invalidate(apiModelProvider);
+    ref.invalidate(apiProxyProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已保存')),
+      );
+    }
   }
 
   Future<void> _checkUpdate() async {

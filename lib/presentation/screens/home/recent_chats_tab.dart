@@ -13,7 +13,11 @@ class RecentChatsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recentChatsAsync = ref.watch(recentChatsProvider);
 
-    return recentChatsAsync.when(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('对话'),
+      ),
+      body: recentChatsAsync.when(
       data: (chats) {
         if (chats.isEmpty) {
           return const Center(
@@ -109,6 +113,7 @@ class RecentChatsTab extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text('Error: $error')),
+      ),
     );
   }
 

@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorage {
   static const String _keyServerUrl = 'server_url';
   static const String _keyThemeMode = 'theme_mode';
+  static const String _keyApiKey = 'api_key';
+  static const String _keyApiModel = 'api_model';
+  static const String _keyApiProxy = 'api_proxy';
 
   final SharedPreferences _prefs;
 
@@ -22,5 +25,23 @@ class LocalStorage {
 
   Future<void> setDarkMode(bool value) async {
     await _prefs.setBool(_keyThemeMode, value);
+  }
+
+  String? get apiKey => _prefs.getString(_keyApiKey);
+
+  Future<void> setApiKey(String value) async {
+    await _prefs.setString(_keyApiKey, value);
+  }
+
+  String? get apiModel => _prefs.getString(_keyApiModel);
+
+  Future<void> setApiModel(String value) async {
+    await _prefs.setString(_keyApiModel, value);
+  }
+
+  String? get apiProxy => _prefs.getString(_keyApiProxy);
+
+  Future<void> setApiProxy(String value) async {
+    await _prefs.setString(_keyApiProxy, value);
   }
 }

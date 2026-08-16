@@ -13,7 +13,11 @@ class CharactersTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final charactersAsync = ref.watch(charactersProvider);
 
-    return charactersAsync.when(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('角色'),
+      ),
+      body: charactersAsync.when(
       data: (characters) {
         if (characters.isEmpty) {
           return const Center(
@@ -95,6 +99,7 @@ class CharactersTab extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text('Error: $error')),
+      ),
     );
   }
 

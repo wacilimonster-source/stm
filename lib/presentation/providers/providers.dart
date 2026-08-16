@@ -138,3 +138,15 @@ final shellTabIndexProvider = StateProvider<int>((ref) => 0);
 
 final selectedWorldInfosProvider =
     StateProvider<Map<String, List<String>>>((ref) => {});
+
+final apiKeyProvider = Provider<String?>((ref) {
+  return ref.watch(localStorageProvider).apiKey;
+});
+
+final apiModelProvider = Provider<String?>((ref) {
+  return ref.watch(localStorageProvider).apiModel;
+});
+
+final apiProxyProvider = Provider<String?>((ref) {
+  return ref.watch(localStorageProvider).apiProxy;
+});

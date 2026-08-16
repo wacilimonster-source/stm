@@ -82,17 +82,32 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   ChatNotifier(this._ref, this._params) : super(ChatState());
 
-  Future<void> loadHistory() async {
+  Future<void> loadHistory({String? greeting}) async {
     final connection = _ref.read(connectionProvider);
     if (connection.client == null) return;
 
-    final data = await connection.client!.getChatHistory(
-      _params.avatarUrl,
-      _params.fileName,
-    );
-    state = state.copyWith(
-      messages: data.map((e) => ChatMessage.fromJson(e)).toList(),
-    );
+    var messages = <ChatMessage>[];
+    if (_params.fileName.isNotEmpty) {
+      final data = await connection.client!.getChatHistory(
+        _params.avatarUrl,
+        _params.fileName,
+      );
+      messages = data.map((e) => ChatMessage.fromJson(e)).toList();
+    }
+
+    if (messages.isEmpty && greeting != null && greeting.isNotEmpty) {
+      messages = [
+        ChatMessage(
+          role: 'assistant',
+          name: '',
+          isUser: false,
+          content: greeting,
+          sendDate: DateTime.now(),
+        ),
+      ];
+    }
+
+    state = state.copyWith(messages: messages);
   }
 
   Future<void> sendMessage(String content) async {
@@ -112,6 +127,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(messages: [...state.messages, userMessage]);
 
     try {
+      final apiKey = _ref.read(apiKeyProvider);
+      final apiModel = _ref.read(apiModelProvider);
+      final apiProxy = _ref.read(apiProxyProvider);
+
       final body = {
         'chat_completion_source': 'openai',
         'stream': true,
@@ -119,6 +138,17 @@ class ChatNotifier extends StateNotifier<ChatState> {
           {'role': 'user', 'content': content}
         ],
       };
+
+      if (apiModel != null && apiModel.isNotEmpty) {
+        body['model'] = apiModel;
+      }
+      if (apiKey != null && apiKey.isNotEmpty) {
+        body['reverse_proxy'] =
+            (apiProxy != null && apiProxy.isNotEmpty)
+                ? apiProxy
+                : 'https://api.openai.com/v1';
+        body['proxy_password'] = apiKey;
+      }
 
       final worldInfoNames = _ref
           .read(selectedWorldInfosProvider)[_params.avatarUrl] ?? const [];

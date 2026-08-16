@@ -23,20 +23,65 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
+  String? _resolvedFileId;
+  bool _resolving = false;
 
   @override
   void initState() {
     super.initState();
+    _resolvedFileId = widget.fileId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(chatProvider(_params()).notifier).loadHistory();
+      _initChat();
       _loadServerWorldBinding();
     });
   }
 
   ChatParams _params() => ChatParams(
         avatarUrl: widget.avatarUrl,
-        fileName: widget.fileId,
+        fileName: _resolvedFileId ?? '',
       );
+
+  Future<void> _initChat() async {
+    final connection = ref.read(connectionProvider);
+    final client = connection.client;
+    if (client == null || widget.avatarUrl.isEmpty) return;
+
+    if (_resolvedFileId == null || _resolvedFileId!.isEmpty) {
+      setState(() => _resolving = true);
+      try {
+        final chats = await client.getChats(widget.avatarUrl);
+        if (chats.isNotEmpty) {
+          final latest = chats.first;
+          final fileId = latest['file_id'] ?? latest['file_name'];
+          if (fileId != null) {
+            setState(() {
+              _resolvedFileId = fileId.toString().replaceAll('.jsonl', '');
+            });
+          }
+        }
+      } catch (_) {}
+      if (mounted) setState(() => _resolving = false);
+    }
+
+    final greeting = await _firstMes;
+    if (mounted) {
+      ref.read(chatProvider(_params()).notifier).loadHistory(greeting: greeting);
+    }
+  }
+
+  Future<String?> get _firstMes async {
+    final connection = ref.read(connectionProvider);
+    final client = connection.client;
+    if (client == null) return null;
+    try {
+      final character = await client.getCharacter(widget.avatarUrl);
+      final firstMes = character['data']?['first_mes'];
+      if (firstMes is String && firstMes.isNotEmpty) {
+        return firstMes;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   Future<void> _loadServerWorldBinding() async {
     final connection = ref.read(connectionProvider);
@@ -117,7 +162,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: chatState.messages.isEmpty
+            child: _resolving
+                ? const Center(child: CircularProgressIndicator())
+                : chatState.messages.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
