@@ -71,6 +71,14 @@ class CharactersTab extends ConsumerWidget {
                               ? Image.network(
                                   avatarUrl,
                                   fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) {
+                                    if (progress == null) return child;
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    );
+                                  },
                                   errorBuilder: (_, __, ___) => const Center(
                                     child: Icon(Icons.person, size: 48),
                                   ),

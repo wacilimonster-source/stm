@@ -25,6 +25,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   String? _resolvedFileId;
   bool _resolving = false;
+  Map<String, dynamic>? _charData;
+  bool _charLoaded = false;
 
   @override
   void initState() {
@@ -40,6 +42,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         avatarUrl: widget.avatarUrl,
         fileName: _resolvedFileId ?? '',
       );
+
+  Future<Map<String, dynamic>?> _loadCharacterData() async {
+    final connection = ref.read(connectionProvider);
+    final client = connection.client;
+    if (client == null || widget.avatarUrl.isEmpty) return null;
+    if (_charLoaded) return _charData;
+    try {
+      _charData = await client.getCharacter(widget.avatarUrl);
+    } catch (_) {
+      _charData = {};
+    }
+    _charLoaded = true;
+    return _charData;
+  }
 
   Future<void> _initChat() async {
     final connection = ref.read(connectionProvider);
@@ -63,42 +79,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (mounted) setState(() => _resolving = false);
     }
 
-    final greeting = await _firstMes;
+    final charData = await _loadCharacterData();
+    final firstMes = charData?['data']?['first_mes'];
+    final greeting = firstMes is String && firstMes.isNotEmpty ? firstMes : null;
     if (mounted) {
       ref.read(chatProvider(_params()).notifier).loadHistory(greeting: greeting);
     }
   }
 
-  Future<String?> get _firstMes async {
-    final connection = ref.read(connectionProvider);
-    final client = connection.client;
-    if (client == null) return null;
-    try {
-      final character = await client.getCharacter(widget.avatarUrl);
-      final firstMes = character['data']?['first_mes'];
-      if (firstMes is String && firstMes.isNotEmpty) {
-        return firstMes;
-      }
-    } catch (_) {}
-    return null;
-  }
-
   Future<void> _loadServerWorldBinding() async {
-    final connection = ref.read(connectionProvider);
-    final client = connection.client;
-    if (client == null || widget.avatarUrl.isEmpty) return;
-
-    try {
-      final character = await client.getCharacter(widget.avatarUrl);
-      final world = character['data']?['extensions']?['world'];
+    final charData = await _loadCharacterData();
+    if (mounted) {
+      final world = charData?['data']?['extensions']?['world'];
       final selections = ref.read(selectedWorldInfosProvider);
-      if (world is String && world.isNotEmpty && !selections.containsKey(widget.avatarUrl)) {
+      if (world is String &&
+          world.isNotEmpty &&
+          !selections.containsKey(widget.avatarUrl)) {
         ref.read(selectedWorldInfosProvider.notifier).state = {
           ...selections,
           widget.avatarUrl: [world],
         };
       }
-    } catch (_) {}
+    }
   }
 
   void _scrollToBottom() {
@@ -132,6 +134,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final prevCount = prev?.messages.length ?? 0;
       if (next.messages.length != prevCount) {
         _scrollToBottom();
+      }
+      if (next.error != null && next.error != prev?.error) {
+        _showError(next.error!);
       }
     });
 
@@ -267,6 +272,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('生成失败：$message'),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
+
   void _showMessageMenu(
     BuildContext context,
     WidgetRef ref,
@@ -331,7 +346,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
+class _MessageBubble extends StatefulWidget {
   final dynamic message;
   final VoidCallback onLongPress;
 
@@ -341,19 +356,28 @@ class _MessageBubble extends StatelessWidget {
   });
 
   @override
+  State<_MessageBubble> createState() => _MessageBubbleState();
+}
+
+class _MessageBubbleState extends State<_MessageBubble> {
+  bool _thinkingExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final message = widget.message;
     final isUser = message.isUser;
+    final hasThinking = message.thinking != null && message.thinking!.isNotEmpty;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
-        onLongPress: onLongPress,
+        onLongPress: widget.onLongPress,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75,
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
           ),
           decoration: BoxDecoration(
             color: isUser
@@ -364,6 +388,68 @@ class _MessageBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (hasThinking) ...[
+                InkWell(
+                  onTap: () => setState(
+                    () => _thinkingExpanded = !_thinkingExpanded,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer
+                          .withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.psychology_outlined,
+                          size: 16,
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _thinkingExpanded ? '收起思考' : '思考过程',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _thinkingExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 16,
+                          color: theme.colorScheme.onSecondaryContainer,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_thinkingExpanded) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      message.thinking,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color
+                            ?.withOpacity(0.7),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
               Text(
                 message.content,
                 style: TextStyle(
@@ -372,17 +458,15 @@ class _MessageBubble extends StatelessWidget {
                       : theme.textTheme.bodyLarge?.color,
                 ),
               ),
-              if (message.thinking != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '💭 ${message.thinking}',
-                    style: theme.textTheme.bodySmall,
+              if (message.sendDate != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  _formatTime(message.sendDate),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: isUser
+                        ? Colors.white70
+                        : theme.textTheme.bodySmall?.color,
                   ),
                 ),
               ],
@@ -391,6 +475,11 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(time.hour)}:${two(time.minute)}';
   }
 }
 
@@ -406,6 +495,7 @@ class _WorldInfoPicker extends ConsumerStatefulWidget {
 class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
   List<Map<String, dynamic>>? _worldInfos;
   Set<String> _selected = {};
+  String? _loadError;
 
   @override
   void initState() {
@@ -418,10 +508,20 @@ class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
 
   Future<void> _load() async {
     final connection = ref.read(connectionProvider);
-    if (connection.client == null) return;
-    final list = await connection.client!.getWorldInfoList();
-    if (mounted) {
-      setState(() => _worldInfos = list);
+    if (connection.client == null) {
+      setState(() => _loadError = '未连接服务器');
+      return;
+    }
+    setState(() => _loadError = null);
+    try {
+      final list = await connection.client!.getWorldInfoList();
+      if (mounted) {
+        setState(() => _worldInfos = list);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadError = '加载失败：$e');
+      }
     }
   }
 
@@ -439,7 +539,30 @@ class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
             ),
           ),
           Flexible(
-            child: _worldInfos == null
+            child: _loadError != null
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(
+                          _loadError!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.tonal(
+                          onPressed: () => setState(() {
+                            _worldInfos = null;
+                            _loadError = null;
+                          }),
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
+                  )
+                : _worldInfos == null
                 ? const Padding(
                     padding: EdgeInsets.all(24),
                     child: CircularProgressIndicator(),
@@ -451,7 +574,11 @@ class _WorldInfoPickerState extends ConsumerState<_WorldInfoPicker> {
                       final wi = _worldInfos![index];
                       final name = wi['name'] ?? '';
                       return CheckboxListTile(
-                        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        title: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         value: _selected.contains(name),
                         onChanged: (checked) {
                           setState(() {

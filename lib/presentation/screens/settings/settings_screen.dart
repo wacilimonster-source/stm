@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/update/update_dialog.dart';
 import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
+import '../welcome/welcome_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -108,6 +109,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: const Text('断开连接'),
                 onTap: () async {
                   await ref.read(connectionProvider.notifier).disconnect();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const WelcomeScreen(),
+                    ),
+                    (route) => false,
+                  );
                 },
               ),
             ],
@@ -293,11 +301,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          _SectionCard(
+          const _SectionCard(
             children: [
               ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('版本'),
+                leading: Icon(Icons.info_outline),
+                title: Text('版本'),
                 subtitle: Text(UpdateService.currentVersion),
               ),
             ],

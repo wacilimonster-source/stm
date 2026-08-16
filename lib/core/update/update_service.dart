@@ -4,11 +4,17 @@ import 'package:path_provider/path_provider.dart';
 class UpdateService {
   static const String _owner = 'wacilimonster-source';
   static const String _repo = 'stm';
-  static const String currentVersion = '1.4.0';
+  static const String currentVersion = '1.4.1';
 
   final Dio _dio;
 
-  UpdateService() : _dio = Dio();
+  UpdateService()
+      : _dio = Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 15),
+            receiveTimeout: const Duration(seconds: 30),
+          ),
+        );
 
   Future<UpdateInfo?> checkUpdate() async {
     try {

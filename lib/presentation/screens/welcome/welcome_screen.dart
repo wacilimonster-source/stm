@@ -19,6 +19,17 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   bool _isCheckingUpdate = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final savedUrl = ref.read(localStorageProvider).serverUrl;
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        _urlController.text = savedUrl;
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _urlController.dispose();
     super.dispose();

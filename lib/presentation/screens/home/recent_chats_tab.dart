@@ -37,7 +37,7 @@ class RecentChatsTab extends ConsumerWidget {
               final avatarUrl = chat.avatar != null && chat.avatar!.isNotEmpty
                   ? '$avatarBaseUrl/characters/${chat.avatar}'
                   : null;
-              final characterName = chat.fileId.replaceAll('.jsonl', '');
+              final characterName = chat.characterName;
 
               return Dismissible(
                 key: ValueKey('chat_${chat.avatar}_${chat.fileId}'),
@@ -63,9 +63,10 @@ class RecentChatsTab extends ConsumerWidget {
                       backgroundImage: avatarUrl != null
                           ? NetworkImage(avatarUrl)
                           : null,
-                      child: avatarUrl == null
-                          ? const Icon(Icons.person)
+                      onBackgroundImageError: avatarUrl != null
+                          ? (_, __) {}
                           : null,
+                      child: const Icon(Icons.person),
                     ),
                     title: Text(
                       characterName,

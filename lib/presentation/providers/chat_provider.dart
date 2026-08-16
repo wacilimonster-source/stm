@@ -14,22 +14,6 @@ final recentChatsProvider = FutureProvider<List<RecentChat>>((ref) async {
   return data.map((e) => RecentChat.fromJson(e)).toList();
 });
 
-final chatHistoryProvider = FutureProvider.family<List<ChatMessage>, ChatParams>(
-  (ref, params) async {
-    final connection = ref.watch(connectionProvider);
-    if (connection.status != ConnectionStatus.connected ||
-        connection.client == null) {
-      return [];
-    }
-
-    final data = await connection.client!.getChatHistory(
-      params.avatarUrl,
-      params.fileName,
-    );
-    return data.map((e) => ChatMessage.fromJson(e)).toList();
-  },
-);
-
 class ChatParams {
   final String avatarUrl;
   final String fileName;
@@ -72,15 +56,19 @@ class ChatState {
 }
 
 final chatProvider =
-    StateNotifierProvider.family<ChatNotifier, ChatState, ChatParams>(
+    StateNotifierProvider.autoDispose.family<ChatNotifier, ChatState, ChatParams>(
   (ref, params) => ChatNotifier(ref, params),
 );
 
 class ChatNotifier extends StateNotifier<ChatState> {
   final Ref _ref;
   final ChatParams _params;
+  Map<String, dynamic>? _charCard;
+  String _currentFileName = '';
 
-  ChatNotifier(this._ref, this._params) : super(ChatState());
+  ChatNotifier(this._ref, this._params) : super(ChatState()) {
+    _currentFileName = _params.fileName;
+  }
 
   Future<void> loadHistory({String? greeting}) async {
     final connection = _ref.read(connectionProvider);
@@ -110,6 +98,107 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(messages: messages);
   }
 
+  Future<Map<String, dynamic>?> _getCharacterCard() async {
+    final connection = _ref.read(connectionProvider);
+    if (connection.client == null || _params.avatarUrl.isEmpty) return null;
+    if (_charCard != null) return _charCard;
+    try {
+      _charCard = await connection.client!.getCharacter(_params.avatarUrl);
+    } catch (_) {
+      _charCard = {};
+    }
+    return _charCard;
+  }
+
+  Future<List<Map<String, dynamic>>> _buildRequestMessages() async {
+    final connection = _ref.read(connectionProvider);
+    final messages = <Map<String, dynamic>>[];
+
+    final worldInfoNames =
+        _ref.read(selectedWorldInfosProvider)[_params.avatarUrl] ?? const [];
+    if (worldInfoNames.isNotEmpty) {
+      try {
+        final parts = <String>[];
+        for (final name in worldInfoNames) {
+          final wiData = await connection.client!.getWorldInfo(name);
+          final entries = wiData['entries'] as Map<String, dynamic>? ?? {};
+          final content = entries.values
+              .whereType<Map<String, dynamic>>()
+              .where((e) => e['disable'] != true)
+              .map((e) => e['content']?.toString() ?? '')
+              .where((c) => c.isNotEmpty)
+              .join('\n\n');
+          if (content.isNotEmpty) {
+            parts.add('【$name】\n$content');
+          }
+        }
+        if (parts.isNotEmpty) {
+          messages.add({
+            'role': 'system',
+            'content': '以下是世界设定，请在对话中遵循：\n${parts.join('\n\n')}',
+          });
+        }
+      } catch (_) {}
+    }
+
+    final char = await _getCharacterCard();
+    final data = char?['data'];
+    if (data is Map) {
+      final parts = <String>[];
+      final name = data['name']?.toString() ?? '';
+      if (name.isNotEmpty) parts.add('角色名称：$name');
+      for (final field in ['description', 'personality', 'scenario']) {
+        final value = data[field]?.toString() ?? '';
+        if (value.isNotEmpty) parts.add(value);
+      }
+      if (parts.isNotEmpty) {
+        messages.add({
+          'role': 'system',
+          'content': '以下是角色设定，请在对话中扮演好这个角色：\n${parts.join('\n\n')}',
+        });
+      }
+    }
+
+    for (final m in state.messages) {
+      messages.add({
+        'role': m.isUser ? 'user' : 'assistant',
+        'content': m.content,
+      });
+    }
+    return messages;
+  }
+
+  String _newChatFileName(String characterName) {
+    final n = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    String three(int v) => v.toString().padLeft(3, '0');
+    return '$characterName - ${n.year}-${two(n.month)}-${two(n.day)}'
+        '@${two(n.hour)}h${two(n.minute)}m${two(n.second)}s'
+        '${three(n.millisecond)}ms';
+  }
+
+  Future<void> _saveChat() async {
+    final connection = _ref.read(connectionProvider);
+    final client = connection.client;
+    if (client == null || _params.avatarUrl.isEmpty) return;
+
+    var fileName = _currentFileName;
+    if (fileName.isEmpty) {
+      final char = await _getCharacterCard();
+      final charName = char?['data']?['name']?.toString() ?? '角色';
+      fileName = _newChatFileName(charName);
+      _currentFileName = fileName;
+    }
+
+    try {
+      await client.saveChat(
+        _params.avatarUrl,
+        fileName,
+        state.messages.map((m) => m.toJson()).toList(),
+      );
+    } catch (_) {}
+  }
+
   Future<void> sendMessage(String content) async {
     final connection = _ref.read(connectionProvider);
     if (connection.client == null) return;
@@ -133,12 +222,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
       final apiSource = _ref.read(apiSourceProvider);
       final apiCustomUrl = _ref.read(apiCustomUrlProvider);
 
+      final messages = await _buildRequestMessages();
+
       final body = {
         'chat_completion_source': apiSource,
         'stream': true,
-        'messages': [
-          {'role': 'user', 'content': content}
-        ],
+        'messages': messages,
+        'include_reasoning': true,
+        'temperature': 1.0,
+        'top_p': 0.98,
       };
 
       if (apiSource == 'custom') {
@@ -155,59 +247,42 @@ class ChatNotifier extends StateNotifier<ChatState> {
         body['model'] = apiModel;
       }
 
-      final worldInfoNames = _ref
-          .read(selectedWorldInfosProvider)[_params.avatarUrl] ?? const [];
-      if (worldInfoNames.isNotEmpty) {
-        try {
-          final parts = <String>[];
-          for (final name in worldInfoNames) {
-            final wiData = await connection.client!.getWorldInfo(name);
-            final entries = wiData['entries'] as Map<String, dynamic>? ?? {};
-            final content = entries.values
-                .whereType<Map<String, dynamic>>()
-                .where((e) => e['disable'] != true)
-                .map((e) => e['content']?.toString() ?? '')
-                .where((c) => c.isNotEmpty)
-                .join('\n\n');
-            if (content.isNotEmpty) {
-              parts.add('【$name】\n$content');
-            }
-          }
-          if (parts.isNotEmpty) {
-            (body['messages'] as List).insert(0, {
-              'role': 'system',
-              'content': '以下是世界设定，请在对话中遵循：\n${parts.join('\n\n')}',
-            });
-          }
-        } catch (_) {}
-      }
-
       String fullResponse = '';
-      String? thinking;
+      String thinking = '';
 
       await for (final chunk in connection.client!.sendMessageStream(body)) {
         try {
           final data = json.decode(chunk);
-          final delta = data['choices']?[0]?['delta']?['content'];
-          if (delta != null && delta is String) {
-            fullResponse += delta;
+          final delta = data['choices']?[0]?['delta'];
+          final contentDelta = delta?['content'];
+          final reasoningDelta =
+              delta?['reasoning_content'] ?? delta?['reasoning'];
+          if (reasoningDelta is String) {
+            thinking += reasoningDelta;
+          }
+          if (contentDelta is String) {
+            fullResponse += contentDelta;
             final lastMessage = ChatMessage(
               role: 'assistant',
               name: 'Assistant',
               isUser: false,
               content: fullResponse,
               sendDate: DateTime.now(),
-              thinking: thinking,
+              thinking: thinking.isEmpty ? null : thinking,
             );
             state = state.copyWith(messages: [
               ...state.messages,
-              if (state.messages.isEmpty || state.messages.last.isUser) lastMessage
-              else state.messages.removeLast(),
+              if (state.messages.isEmpty || state.messages.last.isUser)
+                lastMessage
+              else
+                state.messages.removeLast(),
               lastMessage,
             ]);
           }
         } catch (_) {}
       }
+
+      await _saveChat();
     } catch (e) {
       state = state.copyWith(error: e.toString());
     } finally {
@@ -224,17 +299,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
     );
 
     state = state.copyWith(
-      messages: state.messages
-          .where((m) => m != state.messages.last)
-          .toList(),
+      messages: state.messages.take(state.messages.length - 1).toList(),
     );
     await sendMessage(lastUserMessage.content);
   }
 
-  void removeMessageAt(int index) {
+  Future<void> removeMessageAt(int index) async {
     if (index < 0 || index >= state.messages.length) return;
     state = state.copyWith(
       messages: [...state.messages]..removeAt(index),
     );
+    await _saveChat();
   }
 }

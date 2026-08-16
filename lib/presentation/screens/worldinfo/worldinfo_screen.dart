@@ -120,18 +120,16 @@ class _WorldInfoScreenState extends ConsumerState<WorldInfoScreen> {
 
     try {
       await connection.client!.saveWorldInfo(name, {'entries': <String, dynamic>{}});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已创建「$name」')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已创建「$name」')),
+      );
       ref.invalidate(worldInfoListProvider);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('创建失败: $e')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('创建失败: $e')),
+      );
     }
   }
 
@@ -241,7 +239,7 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
                     leading: Switch(
                       value: entry.enabled,
                       onChanged: (value) async {
-                        await _saveEntry(context, worldInfo, entry.copyWith(enabled: value));
+                        await _saveEntry(worldInfo, entry.copyWith(enabled: value));
                         ref.invalidate(_getProvider());
                       },
                     ),
@@ -286,32 +284,30 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
       final worldInfo = WorldInfo.fromJson(widget.name, data);
 
       var maxId = 0;
-      worldInfo.entries.keys.forEach((id) {
+      for (final id in worldInfo.entries.keys) {
         final parsed = int.tryParse(id);
         if (parsed != null && parsed >= maxId) maxId = parsed + 1;
-      });
+      }
       final newId = maxId.toString();
 
       final entry = WorldInfoEntry(id: newId, key: const [], content: '');
-      await _saveEntry(context, worldInfo, entry);
+      await _saveEntry(worldInfo, entry);
       ref.invalidate(_getProvider());
 
-      if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => WorldInfoEntryEditScreen(
-              worldInfoName: widget.name,
-              entry: entry,
-            ),
+      if (!context.mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => WorldInfoEntryEditScreen(
+            worldInfoName: widget.name,
+            entry: entry,
           ),
-        ).then((_) => ref.invalidate(_getProvider()));
-      }
+        ),
+      ).then((_) => ref.invalidate(_getProvider()));
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('新增失败: $e')),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('新增失败: $e')),
+      );
     }
   }
 
@@ -344,18 +340,20 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
 
     final newEntries = Map<String, WorldInfoEntry>.from(worldInfo.entries)
       ..remove(entry.id);
-    await _saveEntry(context, WorldInfo(name: worldInfo.name, entries: newEntries), null);
+    final ok = await _saveEntry(
+      WorldInfo(name: worldInfo.name, entries: newEntries),
+      null,
+    );
     ref.invalidate(_getProvider());
-    return true;
+    return ok;
   }
 
-  Future<void> _saveEntry(
-    BuildContext context,
+  Future<bool> _saveEntry(
     WorldInfo worldInfo,
     WorldInfoEntry? entry,
   ) async {
     final connection = ref.read(connectionProvider);
-    if (connection.client == null) return;
+    if (connection.client == null) return false;
 
     final entries = Map<String, WorldInfoEntry>.from(worldInfo.entries);
     if (entry != null) {
@@ -368,12 +366,14 @@ class _WorldInfoEntriesScreenState extends ConsumerState<WorldInfoEntriesScreen>
 
     try {
       await connection.client!.saveWorldInfo(widget.name, data);
+      return true;
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('保存失败: $e')),
         );
       }
+      return false;
     }
   }
 }
@@ -395,6 +395,8 @@ class WorldInfoEntryEditScreen extends ConsumerStatefulWidget {
 class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScreen> {
   late final TextEditingController _contentController;
   late final TextEditingController _orderController;
+  late final TextEditingController _keyController;
+  late final TextEditingController _secondaryKeyController;
   late bool _enabled;
 
   @override
@@ -402,6 +404,10 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
     super.initState();
     _contentController = TextEditingController(text: widget.entry.content);
     _orderController = TextEditingController(text: widget.entry.order.toString());
+    _keyController = TextEditingController(text: widget.entry.key.join(', '));
+    _secondaryKeyController = TextEditingController(
+      text: widget.entry.secondaryKeys.join(', '),
+    );
     _enabled = widget.entry.enabled;
   }
 
@@ -409,6 +415,8 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
   void dispose() {
     _contentController.dispose();
     _orderController.dispose();
+    _keyController.dispose();
+    _secondaryKeyController.dispose();
     super.dispose();
   }
 
@@ -443,6 +451,23 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
           ),
           const SizedBox(height: 16),
           TextField(
+            controller: _keyController,
+            decoration: const InputDecoration(
+              labelText: '触发关键词（逗号分隔）',
+              hintText: '如：魔法, 剑, 城堡',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _secondaryKeyController,
+            decoration: const InputDecoration(
+              labelText: '次级关键词（可选，逗号分隔）',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
             controller: _contentController,
             maxLines: 12,
             decoration: const InputDecoration(
@@ -455,6 +480,14 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
         ],
       ),
     );
+  }
+
+  List<String> _splitKeys(String text) {
+    return text
+        .split(RegExp(r'[,，]'))
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
   }
 
   Future<void> _save() async {
@@ -470,6 +503,8 @@ class _WorldInfoEntryEditScreenState extends ConsumerState<WorldInfoEntryEditScr
         content: _contentController.text.trim(),
         order: int.tryParse(_orderController.text.trim()) ?? widget.entry.order,
         enabled: _enabled,
+        key: _splitKeys(_keyController.text),
+        secondaryKeys: _splitKeys(_secondaryKeyController.text),
       );
 
       final entries = Map<String, WorldInfoEntry>.from(worldInfo.entries);
