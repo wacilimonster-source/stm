@@ -145,6 +145,7 @@ class SillyTavernClient {
 
       final stream = response.data as Stream<List<int>>;
       String buffer = '';
+      var done = false;
 
       await for (final text in stream.transform(utf8.decoder)) {
         buffer += text;
@@ -153,14 +154,23 @@ class SillyTavernClient {
           final lineEnd = buffer.indexOf('\n');
           final line = buffer.substring(0, lineEnd).trim();
           buffer = buffer.substring(lineEnd + 1);
-
           if (line.startsWith('data:')) {
             final data = line.substring(5).trim();
             if (data == '[DONE]') {
-              return;
+              done = true;
+              break;
             }
             yield data;
           }
+        }
+        if (done) break;
+      }
+
+      if (!done && buffer.trim().isNotEmpty) {
+        final tail = buffer.trim();
+        if (tail.startsWith('data:')) {
+          final data = tail.substring(5).trim();
+          if (data != '[DONE]') yield data;
         }
       }
     } catch (e) {
