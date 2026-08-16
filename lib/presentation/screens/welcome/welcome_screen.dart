@@ -5,6 +5,8 @@ import '../../../core/update/update_service.dart';
 import '../../providers/providers.dart';
 import '../home/main_shell.dart';
 
+const String defaultServerUrl = 'http://192.168.1.178:8000/';
+
 class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -23,9 +25,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final savedUrl = ref.read(localStorageProvider).serverUrl;
-      if (savedUrl != null && savedUrl.isNotEmpty) {
-        _urlController.text = savedUrl;
-      }
+      _urlController.text = (savedUrl != null && savedUrl.isNotEmpty)
+          ? savedUrl
+          : defaultServerUrl;
     });
   }
 
@@ -112,7 +114,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
               TextField(
                 controller: _urlController,
                 decoration: const InputDecoration(
-                  hintText: 'http://192.168.1.100:8000',
+                  hintText: defaultServerUrl,
                   prefixIcon: Icon(Icons.link),
                 ),
                 keyboardType: TextInputType.url,

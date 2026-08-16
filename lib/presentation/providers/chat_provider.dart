@@ -329,6 +329,19 @@ class ChatNotifier extends StateNotifier<ChatState> {
     await sendMessage(lastUserMessage.content, appendUserMessage: false);
   }
 
+  /// 重新开始对话。deleteCurrent 为 true 时删除服务端当前对话文件；
+  /// 删除失败时抛出异常（不清理本地消息）。
+  Future<void> startNewChat({required bool deleteCurrent}) async {
+    if (deleteCurrent && _currentFileName.isNotEmpty) {
+      final client = _client ?? _ref.read(connectionProvider).client;
+      if (client == null) return;
+      await client.deleteChat(_params.avatarUrl, _currentFileName);
+    }
+    _currentFileName = '';
+    _charCard = null;
+    state = ChatState();
+  }
+
   Future<void> removeMessageAt(int index) async {
     if (index < 0 || index >= state.messages.length) return;
     state = state.copyWith(

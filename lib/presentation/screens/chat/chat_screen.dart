@@ -145,6 +145,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: Text(widget.characterName),
         actions: [
           IconButton(
+            icon: const Icon(Icons.restart_alt),
+            tooltip: '重新开始',
+            onPressed: chatState.isGenerating
+                ? null
+                : () => _confirmRestart(ref, params),
+          ),
+          IconButton(
             icon: const Icon(Icons.menu_book_outlined),
             tooltip: '世界书',
             onPressed: () => _showWorldInfoPicker(context),
@@ -334,6 +341,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (context) => _WorldInfoPicker(avatarUrl: widget.avatarUrl),
     );
+  }
+
+  Future<void> _confirmRestart(WidgetRef ref, ChatParams params) async {
+    if (ref.read(chatProvider(params)).messages.isEmpty) return;
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重新开始对话'),
+        content: const Text('如何处理当前对话？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'delete'),
+            child: const Text('删除并重新开始'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'keep'),
+            child: const Text('保留并重新开始'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+
+    try {
+      await ref
+          .read(chatProvider(params).notifier)
+          .startNewChat(deleteCurrent: choice == 'delete');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('删除对话失败，已取消操作：$e')),
+        );
+      }
+      return;
+    }
+
+    if (choice == 'delete' && mounted) {
+      ref.invalidate(recentChatsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已删除对话并重新开始')),
+      );
+    }
   }
 
   void _sendMessage(WidgetRef ref) {
