@@ -65,6 +65,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final ChatParams _params;
   Map<String, dynamic>? _charCard;
   String _currentFileName = '';
+  dynamic _client; // 缓存连接，避免 provider 被 dispose 后保存失败
 
   ChatNotifier(this._ref, this._params) : super(ChatState()) {
     _currentFileName = _params.fileName;
@@ -178,14 +179,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
   }
 
   Future<void> _saveChat() async {
-    final connection = _ref.read(connectionProvider);
-    final client = connection.client;
+    final client = _client ?? _ref.read(connectionProvider).client;
     if (client == null || _params.avatarUrl.isEmpty) return;
 
     var fileName = _currentFileName;
     if (fileName.isEmpty) {
-      final char = await _getCharacterCard();
-      final charName = char?['data']?['name']?.toString() ?? '角色';
+      final charName =
+          _charCard?['data']?['name']?.toString() ??
+          (_params.avatarUrl.isEmpty
+              ? '角色'
+              : _params.avatarUrl.replaceAll('.png', ''));
       fileName = _newChatFileName(charName);
       _currentFileName = fileName;
     }
@@ -199,21 +202,29 @@ class ChatNotifier extends StateNotifier<ChatState> {
     } catch (_) {}
   }
 
-  Future<void> sendMessage(String content) async {
+  Future<void> sendMessage(String content, {bool appendUserMessage = true}) async {
     final connection = _ref.read(connectionProvider);
     if (connection.client == null) return;
+    _client = connection.client;
 
     state = state.copyWith(isGenerating: true);
 
-    final userMessage = ChatMessage(
-      role: 'user',
-      name: 'User',
-      isUser: true,
-      content: content,
-      sendDate: DateTime.now(),
-    );
-
-    state = state.copyWith(messages: [...state.messages, userMessage]);
+    if (appendUserMessage) {
+      final userMessage = ChatMessage(
+        role: 'user',
+        name: 'User',
+        isUser: true,
+        content: content,
+        sendDate: DateTime.now(),
+      );
+      state = state.copyWith(messages: [...state.messages, userMessage]);
+    } else {
+      final updated = [...state.messages];
+      if (updated.isNotEmpty && !updated.last.isUser) {
+        updated.removeLast();
+      }
+      state = state.copyWith(messages: updated);
+    }
 
     try {
       final apiKey = _ref.read(apiKeyProvider);
@@ -243,9 +254,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
         body['proxy_password'] = apiKey;
       }
 
-      if (apiModel != null && apiModel.isNotEmpty) {
-        body['model'] = apiModel;
-      }
+      body['model'] =
+          (apiModel != null && apiModel.isNotEmpty)
+          ? apiModel
+          : 'deepseek-v4-flash';
 
       String fullResponse = '';
       String thinking = '';
@@ -275,14 +287,11 @@ class ChatNotifier extends StateNotifier<ChatState> {
               sendDate: DateTime.now(),
               thinking: thinking.isEmpty ? null : thinking,
             );
-            state = state.copyWith(messages: [
-              ...state.messages,
-              if (state.messages.isEmpty || state.messages.last.isUser)
-                lastMessage
-              else
-                state.messages.removeLast(),
-              lastMessage,
-            ]);
+            final updated = [...state.messages];
+            if (updated.isNotEmpty && !updated.last.isUser) {
+              updated.removeLast();
+            }
+            state = state.copyWith(messages: [...updated, lastMessage]);
           }
         } catch (_) {}
       }
@@ -301,6 +310,13 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   Future<void> regenerate() async {
     if (state.messages.isEmpty) return;
+    if (state.isGenerating) return;
+
+    final last = state.messages.last;
+    if (last.isUser) {
+      await sendMessage(last.content, appendUserMessage: false);
+      return;
+    }
 
     final lastUserMessage = state.messages.lastWhere(
       (m) => m.isUser,
@@ -310,7 +326,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     state = state.copyWith(
       messages: state.messages.take(state.messages.length - 1).toList(),
     );
-    await sendMessage(lastUserMessage.content);
+    await sendMessage(lastUserMessage.content, appendUserMessage: false);
   }
 
   Future<void> removeMessageAt(int index) async {

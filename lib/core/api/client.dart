@@ -143,11 +143,23 @@ class SillyTavernClient {
         options: Options(responseType: ResponseType.stream),
       );
 
-      final stream = response.data as Stream<List<int>>;
+      final data = response.data;
+      Stream<List<int>> byteStream;
+      if (data is ResponseBody) {
+        byteStream = data.stream;
+      } else if (data is Stream<List<int>>) {
+        byteStream = data;
+      } else if (data is List<int>) {
+        byteStream = Stream.value(data);
+      } else {
+        throw Exception('不支持的流响应类型: ${data.runtimeType}');
+      }
+
       String buffer = '';
       var done = false;
 
-      await for (final text in stream.transform(utf8.decoder)) {
+      await for (final text
+          in byteStream.map<List<int>>((c) => c).transform(utf8.decoder)) {
         buffer += text;
 
         while (buffer.contains('\n')) {
