@@ -146,8 +146,8 @@ class SillyTavernClient {
       final stream = response.data as Stream<List<int>>;
       String buffer = '';
 
-      await for (final chunk in stream) {
-        buffer += utf8.decode(chunk);
+      await for (final text in stream.transform(utf8.decoder)) {
+        buffer += text;
 
         while (buffer.contains('\n')) {
           final lineEnd = buffer.indexOf('\n');
@@ -164,7 +164,7 @@ class SillyTavernClient {
         }
       }
     } catch (e) {
-      yield '{"error": "$e"}';
+      yield jsonEncode({'error': e.toString()});
     }
   }
 

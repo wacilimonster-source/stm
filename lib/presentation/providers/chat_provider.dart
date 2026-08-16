@@ -249,10 +249,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
       String fullResponse = '';
       String thinking = '';
+      String? streamError;
 
       await for (final chunk in connection.client!.sendMessageStream(body)) {
         try {
           final data = json.decode(chunk);
+          if (data['error'] != null) {
+            streamError = data['error'].toString();
+            break;
+          }
           final delta = data['choices']?[0]?['delta'];
           final contentDelta = delta?['content'];
           final reasoningDelta =
@@ -280,6 +285,10 @@ class ChatNotifier extends StateNotifier<ChatState> {
             ]);
           }
         } catch (_) {}
+      }
+
+      if (streamError != null) {
+        throw Exception(streamError);
       }
 
       await _saveChat();
